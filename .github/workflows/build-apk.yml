@@ -1,0 +1,40 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build APK
+        run: eas build --platform android --profile production --non-interactive --wait
+
+      - name: Get download URL
+        id: url
+        run: |
+          URL=$(eas build:list --platform android --status FINISHED --limit 1 --non-interactive --json | grep -o '"artifactsApplicationUrl":"[^"]*"' | head -1 | cut -d'"' -f4)
+          echo "download_url=$URL" >> $GITHUB_OUTPUT
+          echo "APK Download: $URL"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: Agnes-AI-APK
+          path: '*.apk'
