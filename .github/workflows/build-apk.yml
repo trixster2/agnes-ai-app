@@ -29,11 +29,44 @@ jobs:
       - name: Prebuild Android
         run: npx expo prebuild --platform android --clean
 
-      - name: Build APK
-        run: cd android && ./gradlew assembleDebug
+      - name: Generate keystore
+        run: |
+          keytool -genkey -v \
+            -keystore android/app/release.keystore \
+            -alias agnesrelease \
+            -storepass agnes123 \
+            -keypass agnes123 \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "CN=Agnes, OU=Dev, O=AgnesAI, L=SG, ST=SG, C=SG"
+
+      - name: Setup signing config
+        run: |
+          echo "MYAPP_RELEASE_STORE_FILE=release.keystore" >> android/gradle.properties
+          echo "MYAPP_RELEASE_KEY_ALIAS=agnesrelease" >> android/gradle.properties
+          echo "MYAPP_RELEASE_STORE_PASSWORD=agnes123" >> android/gradle.properties
+          echo "MYAPP_RELEASE_KEY_PASSWORD=agnes123" >> android/gradle.properties
+
+      - name: Patch build.gradle for signing
+        run: |
+          sed -i '/buildTypes {/i\
+    signingConfigs {\
+        release {\
+            if (project.hasProperty("MYAPP_RELEASE_STORE_FILE")) {\
+                storeFile file(MYAPP_RELEASE_STORE_FILE)\
+                storePassword MYAPP_RELEASE_STORE_PASSWORD\
+                keyAlias MYAPP_RELEASE_KEY_ALIAS\
+                keyPassword MYAPP_RELEASE_KEY_PASSWORD\
+            }\
+        }\
+    }\
+' android/app/build.gradle
+          sed -i 's|buildTypes {|buildTypes {\n        release {\n            signingConfig signingConfigs.release\n        }|' android/app/build.gradle
+
+      - name: Build Release APK
+        run: cd android && ./gradlew assembleRelease
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Agnes-AI-APK
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: android/app/build/outputs/apk/release/*.apk
