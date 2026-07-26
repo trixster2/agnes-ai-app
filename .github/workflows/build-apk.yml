@@ -15,26 +15,25 @@ jobs:
         with:
           node-version: 20
 
-      - uses: expo/expo-github-action@v8
+      - uses: actions/setup-java@v4
         with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
+          distribution: temurin
+          java-version: 17
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
 
       - name: Install dependencies
         run: npm ci
 
-      - name: Build APK
-        run: eas build --platform android --profile production --non-interactive --wait
+      - name: Prebuild Android
+        run: npx expo prebuild --platform android --clean
 
-      - name: Get download URL
-        id: url
-        run: |
-          URL=$(eas build:list --platform android --status FINISHED --limit 1 --non-interactive --json | grep -o '"artifactsApplicationUrl":"[^"]*"' | head -1 | cut -d'"' -f4)
-          echo "download_url=$URL" >> $GITHUB_OUTPUT
-          echo "APK Download: $URL"
+      - name: Build APK
+        run: cd android && ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Agnes-AI-APK
-          path: '*.apk'
+          path: android/app/build/outputs/apk/debug/*.apk
