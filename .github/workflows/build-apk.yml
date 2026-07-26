@@ -25,31 +25,21 @@ jobs:
       - name: Prebuild Android
         run: npx expo prebuild --platform android --clean
 
-      - name: Generate keystore
+      - name: Bundle JS into APK
         run: |
-          keytool -genkey -v \
-            -keystore android/app/release.keystore \
-            -alias agnesrelease \
-            -storepass agnes123 \
-            -keypass agnes123 \
-            -keyalg RSA -keysize 2048 -validity 10000 \
-            -dname "CN=Agnes, OU=Dev, O=AgnesAI, L=SG, ST=SG, C=SG"
+          mkdir -p android/app/src/main/assets
+          npx react-native bundle \
+            --platform android \
+            --dev false \
+            --entry-file index.js \
+            --bundle-output android/app/src/main/assets/index.android.bundle \
+            --assets-dest android/app/src/main/res
 
-      - name: Setup signing config
-        run: |
-          echo "MYAPP_RELEASE_STORE_FILE=release.keystore" >> android/gradle.properties
-          echo "MYAPP_RELEASE_KEY_ALIAS=agnesrelease" >> android/gradle.properties
-          echo "MYAPP_RELEASE_STORE_PASSWORD=agnes123" >> android/gradle.properties
-          echo "MYAPP_RELEASE_KEY_PASSWORD=agnes123" >> android/gradle.properties
-
-      - name: Patch signing into build.gradle
-        run: bash scripts/patch-signing.sh
-
-      - name: Build Release APK
-        run: cd android && ./gradlew assembleRelease
+      - name: Build APK
+        run: cd android && ./gradlew assembleDebug
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Agnes-AI-APK
-          path: android/app/build/outputs/apk/release/*.apk
+          path: android/app/build/outputs/apk/debug/*.apk
